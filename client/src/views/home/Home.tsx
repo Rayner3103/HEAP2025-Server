@@ -1,12 +1,18 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Home = () => {
+    const navigate = useNavigate();
+
     const handleButtonClick = () => {
         console.log('Button clicked!');
         // get from server
         fetch('http://localhost:5000/api/example')
             .then(response => response.json())
-            .then(data => console.log(data))
+            .then(data => {
+                console.log(data);
+                navigate('/other', {state : { data }});
+            })
             .catch(error => console.error('Error fetching data:', error));
     }
 
