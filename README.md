@@ -5,8 +5,3 @@ To run server locally, go to /server and type
 ```npm i```
 followed by:
 ```npm run nodemon```
-
-To run client locally, go to /client and type
-```npm i```
-followed by:
-```npm start```
