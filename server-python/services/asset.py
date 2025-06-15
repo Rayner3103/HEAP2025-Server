@@ -96,6 +96,7 @@ def unlink_asset(event_id, asset_id):
         .single()
         .execute()
         .data
+        .get("numberOfReference")
     )
 
     if currentCount > 1:
@@ -115,11 +116,11 @@ def unlink_asset(event_id, asset_id):
             .execute()
         )
 
-        if len(response.data != 1):
+        if len(response.data) != 1:
             return False
         
         os.remove(os.path.join(UPLOAD_FOLDER, asset_id))
-    return len(response.data == 1)
+    return len(response.data) == 1
 
 def create_asset(asset):
     """

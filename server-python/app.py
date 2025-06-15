@@ -231,11 +231,11 @@ def asset():
 				event = event_service.get_event_detail(event_id)
 				if (event == {}):
 					return web_service.sendBadRequest("Event not exists")
-				if not asset_service.validate_asset_id():
+				if not asset_service.validate_asset_id(asset_id):
 					return web_service.sendBadRequest("Asset not exists")
 					
 				if asset_service.unlink_asset(event_id, asset_id):
-					web_service.sendSuccess("Unlinked success")
+					return web_service.sendSuccess("Unlinked success")				
 				return web_service.sendInternalError("Unable to unlink asset")
 			except Exception as e:
 				return web_service.sendInternalError(str(e))
