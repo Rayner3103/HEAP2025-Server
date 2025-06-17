@@ -59,15 +59,14 @@ def validate_edit_fields(user_data):
         enum_check &= user_data.get("gender") in GENDER_ENUM
     if user_data.get("nationality"):
         enum_check &= user_data.get("nationality") in NATIONALITY_ENUM
-    if user_data.get("role"):
-        enum_check &= user_data.get("role") in ROLE_ENUM
 
     email_check = "email" not in user_data or ("email" in user_data and utils.validate_email(user_data.get("email")))
 
     return (
         utils.validate_allowed_field(ALLOWED_FIELDS, user_data) and
         enum_check and
-        email_check
+        email_check and
+        not user_data.get('role')
     )
 
 def get_user_detail(user_id):

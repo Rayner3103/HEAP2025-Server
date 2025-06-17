@@ -18,9 +18,10 @@ ALLOWED_FIELDS = {
     "eventStatus",
     "additionalInformation",
     "origin",
+    "createdUserId"
 }
 
-REQUIRED_FIELDS = {"title", "eventType", "mode", "eventStatus", "origin"}
+REQUIRED_FIELDS = {"title", "eventType", "mode", "eventStatus", "origin", "createdUserId"}
 
 EVENT_TYPE_ENUM = {"Talk", "Workshop", "Case Competition", "Hackathon", "Others"}
 MODE_ENUM = {"Offline", "Online", "Hybrid", "TBA"}
@@ -136,7 +137,7 @@ def create_event(event_data, user_id):
     while (retrieved_event != {}):
         event_id = str(uuid.uuid4())
 
-    created_user_id = database_service.get_root_user_id()
+    created_user_id = user_id
 
     event_data['eventId'] = str(event_id)
     event_data['createdUserId'] = str(created_user_id)
