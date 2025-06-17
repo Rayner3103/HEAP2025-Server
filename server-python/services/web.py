@@ -1,6 +1,9 @@
 def sendSuccess(data):
     return {"status": True, "error": "", "data": data}, 200
 
+def sendUnauthorised(error):
+    return {"status": False, "error": error, "data": ""}, 401
+
 def sendBadRequest(error):
     return {"status": False, "error": error, "data": ""}, 400
 

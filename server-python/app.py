@@ -2,12 +2,13 @@ from flask import Flask, request
 from flask_cors import CORS
 from flask_apscheduler import APScheduler
 
-from werkzeug.utils import secure_filename
+from supabase import AuthApiError
 
 from services import web as web_service
 from services import event as event_service
 from services import user as user_service
 from services import asset as asset_service
+from services import auth as auth_service
 from services import utils
 
 class Config:
@@ -38,7 +39,8 @@ scheduler.start()
 def event():
 	# TODO: make GET, PATCH, DELETE accessible to only those created the event
 	match request.method:
-		case "GET":
+		case "GET": # getting event details
+			
 			try:
 				event_id = request.args['eventId']
 			except:
@@ -49,9 +51,21 @@ def event():
 				if (event == {}):
 					return web_service.sendBadRequest("Event not exists")
 				return web_service.sendSuccess(event)
-			except Exception as e:
-				return web_service.sendInternalError(str(e))
-		case "POST":
+			except Exception:
+				return web_service.sendInternalError('Unable to retrieve event')
+		case "POST": # creating event
+			# authentication
+			try:
+				user_id = auth_service.validate_user_session(request.headers)
+			except AuthApiError:
+				return web_service.sendUnauthorised('You do not have access to this item')
+			except Exception:
+				return web_service.sendInternalError('Unable to perform authentication')
+
+			user = user_service.get_user_detail(user_id)
+			if user.role != 'admin' and user.role != 'organiser':
+				return web_service.sendUnauthorised("You cannot create an event")
+			
 			try:
 				event_data = dict(request.form)
 			except:
@@ -60,11 +74,11 @@ def event():
 			try:
 				if (not event_service.validate_create_fields(event_data)):
 					return web_service.sendBadRequest("Event data is invalid")
-				event_id = event_service.create_event(event_data, "")
+				event_id = event_service.create_event(event_data, user_id)
 				if event_id == "":
-					return web_service.sendInternalError("Unable to create event")
+					return web_service.sendInternalError("Cannot create event")
 				
-                # handle file uploads
+				# handle file uploads
 				files = request.files.getlist("file")
 				for file in files:
 					if file.filename != '':
@@ -75,9 +89,21 @@ def event():
 						if not link_success:
 							return web_service.sendInternalError("Cannot link asset")
 				return web_service.sendSuccess(event_id)
-			except Exception as e:
-				return web_service.sendInternalError(str(e))
-		case "PATCH":
+			except Exception:
+				return web_service.sendInternalError('Cannot create event')
+		case "PATCH": # updating event
+			# authentication
+			try:
+				user_id = auth_service.validate_user_session(request.headers)
+			except AuthApiError:
+				return web_service.sendUnauthorised('You do not have access to this item')
+			except Exception:
+				return web_service.sendInternalError('Unable to perform authentication')
+			
+			user = user_service.get_user_detail(user_id)
+			if user.role != 'admin' and user.role != 'organiser':
+				return web_service.sendUnauthorised("You cannot update an event")
+			
 			try:
 				update_data = request.get_json()['updateData']
 				event_id = request.get_json()['eventId']
@@ -91,14 +117,29 @@ def event():
 				event = event_service.get_event_detail(event_id)
 				if (event == {}):
 					return web_service.sendBadRequest("Event not exists")
+				
+				if (user.role != 'admin' and event.createdUserId != user_id):
+					return web_service.sendUnauthorised("You have no access to this event")
 
 				result = event_service.edit_event(event_id, update_data)
 				if result == "":
-					return web_service.sendInternalError("Unable to edit user")
+					return web_service.sendInternalError("Unable to edit event")
 				return web_service.sendSuccess(result)
 			except Exception as e:
-				return web_service.sendInternalError(str(e))
-		case "DELETE":
+				return web_service.sendInternalError('Cannot update event')
+		case "DELETE": # deleting event
+			# authentication
+			try:
+				user_id = auth_service.validate_user_session(request.headers)
+			except AuthApiError:
+				return web_service.sendUnauthorised('You do not have access to this item')
+			except Exception:
+				return web_service.sendInternalError('Unable to perform authentication')
+			
+			user = user_service.get_user_detail(user_id)
+			if user.role != 'admin' and user.role != 'organiser':
+				return web_service.sendUnauthorised("You cannot delete an event")
+
 			try:
 				event_id = request.get_json()['eventId']
 			except:
@@ -109,12 +150,15 @@ def event():
 				if (event == {}):
 					return web_service.sendBadRequest("Event not exists")
 				
+				if (user.role != 'admin' and event.createdUserId != user_id):
+					return web_service.sendUnauthorised("You have no access to this event")
+				
 				result = event_service.delete_event(event_id)
 				if (result == ""):
 					return web_service.sendInternalError("Unable to delete event")
 				return web_service.sendSuccess(result)
 			except Exception as e:
-				return web_service.sendInternalError(str(e))
+				return web_service.sendInternalError('Cannot delete event')
 		case _:
 			return web_service.sendMethodNotAllowed()
 		
@@ -122,20 +166,35 @@ def event():
 def user():
 	# TODO: make GET, PATCH, DELETE accessible to only the user itself
 	match request.method:
-		case "GET":
+		case "GET": # get user profile data
+			# authentication
 			try:
-				user_id = request.args['userId']
+				user_id = auth_service.validate_user_session(request.headers)
+			except AuthApiError:
+				return web_service.sendUnauthorised('You do not have access to this item')
+			except Exception:
+				return web_service.sendInternalError('Unable to perform authentication')
+			
+			try:
+				request_user_id = request.args['userId']
 			except:
 				return web_service.sendBadRequest("Invalid request body")
-			try:
-				
+			
+			try:	
 				user = user_service.get_user_detail(user_id)
 				if (user == {}):
+					return web_service.sendInternalError("Unexpected error. Please contact admins")
+				
+				if user.role != 'admin' and user_id != request_user_id:
+					return web_service.sendUnauthorised("You cannot access this user")
+
+				request_user = user_service.get_user_detail(request_user_id)
+				if (request_user == {}):
 					return web_service.sendBadRequest("User not exists")
 				return web_service.sendSuccess(user)
-			except Exception as e:
-				return web_service.sendInternalError(str(e))
-		case "POST":
+			except Exception:
+				return web_service.sendInternalError('Cannot get user data')
+		case "POST": # create an account
 			try:
 				user_data = request.get_json()['userData']
 			except:
@@ -149,52 +208,86 @@ def user():
 					return web_service.sendInternalError("Unable to create user")
 				return web_service.sendSuccess(result)
 			except Exception as e:
-				return web_service.sendInternalError(str(e))
-		case "PATCH":
+				return web_service.sendInternalError('Cannot create an account')
+		case "PATCH": # update user profile
+			# authentication
+			try:
+				user_id = auth_service.validate_user_session(request.headers)
+			except AuthApiError:
+				return web_service.sendUnauthorised('You do not have access to this item')
+			except Exception:
+				return web_service.sendInternalError('Unable to perform authentication')
+			
 			try:
 				update_data = request.get_json()['updateData']
-				user_id = request.get_json()['userId']
+				request_user_id = request.get_json()['userId']
 			except:
 				return web_service.sendBadRequest("Invalid request body")
+			
 			try:
-				
 				if (not user_service.validate_edit_fields(update_data)):
 					return web_service.sendBadRequest("User data is invalid")
 				
 				user = user_service.get_user_detail(user_id)
 				if user == {}:
-					return web_service.sendBadRequest("User not exists")
+					return web_service.sendInternalError("Unexpected error. Please contact admin")
+				
+				if user.role != 'admin' and user_id != request_user_id:
+					return web_service.sendUnauthorised("You cannot access this user")
+
+				request_user = user_service.get_user_detail(request_user_id)
 					
-				result = user_service.edit_user(user_id, update_data)
+				result = user_service.edit_user(request_user_id, update_data)
 				if result == "":
 					return web_service.sendInternalError("Unable to edit user")
 				return web_service.sendSuccess(result)
 			except Exception as e:
-				return web_service.sendInternalError(str(e))
-		case "DELETE":
+				return web_service.sendInternalError('Cannot edit user')
+		case "DELETE": # remove account
+			# authentication
 			try:
-				user_id = request.get_json()['userId']
+				user_id = auth_service.validate_user_session(request.headers)
+			except AuthApiError:
+				return web_service.sendUnauthorised('You do not have access to this item')
+			except Exception:
+				return web_service.sendInternalError('Unable to perform authentication')
+			
+			try:
+				request_user_id = request.get_json()['userId']
 			except:
 				return web_service.sendBadRequest("Invalid request body")
+			
 			try:
-				
 				user = user_service.get_user_detail(user_id)
 				if (user == {}):
-					return web_service.sendBadRequest("User not exists")
+					return web_service.sendInternalError("Unexpected error. Please contact admin")
 				
-				result = user_service.delete_user(user_id)
+				if user.role != 'admin' and user_id != request_user_id:
+					return web_service.sendUnauthorised("You cannot access this user")
+
+				request_user = user_service.get_user_detail(request_user_id)
+				
+				result = user_service.delete_user(request_user_id)
 				if (result == ""):
 					return web_service.sendInternalError("Unable to delete user")
 				return web_service.sendSuccess(result)
 			except Exception as e:
-				return web_service.sendInternalError(str(e))
+				return web_service.sendInternalError('Cannot delete user')
 		case _:
 			return web_service.sendMethodNotAllowed()
 
 @app.route('/asset', methods=["POST", "DELETE"])
 def asset():
 	match request.method:
-		case "POST":
+		case "POST": # upload files
+			# authentication
+			try:
+				user_id = auth_service.validate_user_session(request.headers)
+			except AuthApiError:
+				return web_service.sendUnauthorised('You do not have access to this item')
+			except Exception:
+				return web_service.sendInternalError('Unable to perform authentication')
+			
 			try:
 				req = dict(request.form)
 				event_id = req["eventId"]
@@ -202,12 +295,19 @@ def asset():
 				return web_service.sendBadRequest("Invalid request body")
 			
 			try:
+				user = user_service.get_user_detail(user_id)
+				if (user == {}):
+					return web_service.sendInternalError("Unexpected error. Please contact admin")
+				
 				# check if event existed
 				event = event_service.get_event_detail(event_id)
 				if (event == {}):
 					return web_service.sendBadRequest("Event not exists")
+				
+				if user.role != 'admin' and user_id != event.createdUserId:
+					return web_service.sendUnauthorised("You cannot upload to this event")
 
-                # handle file uploads
+				# handle file uploads
 				files = request.files.getlist("file")
 				for file in files:
 					if file.filename != '':
@@ -219,8 +319,16 @@ def asset():
 							return web_service.sendInternalError("Cannot link asset")
 				return web_service.sendSuccess(event_id)
 			except Exception as e:
-				return web_service.sendInternalError(str(e))
-		case "DELETE":
+				return web_service.sendInternalError('Cannot upload file')
+		case "DELETE": # delete files
+			# authentication
+			try:
+				user_id = auth_service.validate_user_session(request.headers)
+			except AuthApiError:
+				return web_service.sendUnauthorised('You do not have access to this item')
+			except Exception:
+				return web_service.sendInternalError('Unable to perform authentication')
+			
 			try:
 				event_id = request.get_json()['eventId']
 				asset_id = request.get_json()['assetId']
@@ -228,20 +336,45 @@ def asset():
 				return web_service.sendBadRequest("Invalid request body")
 			
 			try:
+				user = user_service.get_user_detail(user_id)
+				if (user == {}):
+					return web_service.sendInternalError("Unexpected error. Please contact admin")
+				
 				event = event_service.get_event_detail(event_id)
 				if (event == {}):
 					return web_service.sendBadRequest("Event not exists")
 				if not asset_service.validate_asset_id(asset_id):
 					return web_service.sendBadRequest("Asset not exists")
+				
+				if user.role != 'admin' and user_id != event.createdUserId:
+					return web_service.sendUnauthorised("You cannot delete from this event")
 					
 				if asset_service.unlink_asset(event_id, asset_id):
 					return web_service.sendSuccess("Unlinked success")				
 				return web_service.sendInternalError("Unable to unlink asset")
 			except Exception as e:
-				return web_service.sendInternalError(str(e))
+				return web_service.sendInternalError('Cannot delete file')
 		case _:
 			return web_service.sendMethodNotAllowed()
-				
+
+@app.route('/login', methods=["POST"])
+def login():
+	match request.method:
+		case "POST": # login
+			try:
+				email = request.get_json()['email']
+				password = request.get_json()['password']
+			except:
+				return web_service.sendBadRequest("Invalid request body")
+			try:
+				token = auth_service.sign_in(email, password)
+				return web_service.sendSuccess({"access_token": token})
+			except AuthApiError as e:
+				return web_service.sendUnauthorised("Email or password is invalid")
+			except Exception as e:
+				return web_service.sendInternalError("Unable to log in")
+		case _:
+			return web_service.sendMethodNotAllowed()
 
 if __name__ == '__main__':
 	app.run(debug=True)

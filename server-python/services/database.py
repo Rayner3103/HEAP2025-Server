@@ -13,7 +13,7 @@ try:
 except Exception as e:
     print("Error initiating SuperBase client", e)
 
-def get_db():    
+def get_db():
     return db
 
 # for devs
@@ -23,31 +23,3 @@ def get_root_user_id():
         "password": os.environ.get('SUPABASE_ROOT_USER_PASSWORD')
     })
     return response.user.id
-
-
-# TODO: Remove the below test features
-# def read_all():
-#     print('Reading data.')
-#     data = (
-#         supabase.table('test')
-#         .select('*')
-#         .execute()
-#     )
-#     return data.data, data.count
-
-# def insert_one(table, data):
-#     result = (
-#         supabase.table(table)
-#         .insert(data)
-#         .execute()
-#     )
-#     return result
-
-# def delete_one(table, id):
-#     result = (
-#         supabase.table(table)
-#         .delete()
-#         .eq('id', id)
-#         .execute()
-#     )
-#     return result
