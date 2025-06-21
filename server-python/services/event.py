@@ -4,7 +4,7 @@ from services import utils
 
 ALLOWED_FIELDS = {
     "title",
-    "tagLine",
+    "briefDescription",
     "descripiton",
     "eventType",
     "organisers",
@@ -15,13 +15,10 @@ ALLOWED_FIELDS = {
     "signupDeadline",
     "signupLink",
     "themes",
-    "eventStatus",
-    "additionalInformation",
     "origin",
-    "createdUserId"
 }
 
-REQUIRED_FIELDS = {"title", "eventType", "mode", "eventStatus", "origin", "createdUserId"}
+REQUIRED_FIELDS = {"title", "eventType", "mode", "origin"}
 
 EVENT_TYPE_ENUM = {"Talk", "Workshop", "Case Competition", "Hackathon", "Others"}
 MODE_ENUM = {"Offline", "Online", "Hybrid", "TBA"}
@@ -37,7 +34,7 @@ def validate_create_fields(event_data):
 
     Returns:
         boolean: true if all fields are intact
-    """
+    """    
     return (
         # check if have extra fields
         (utils.validate_allowed_field(ALLOWED_FIELDS, event_data)) and
@@ -46,7 +43,6 @@ def validate_create_fields(event_data):
         # Enum validations
         (event_data.get("eventType") in EVENT_TYPE_ENUM) and
         (event_data.get("mode") in MODE_ENUM) and
-        (event_data.get("eventStatus") in EVENT_STATUS_ENUM) and
         (event_data.get("origin") in ORIGIN_ENUM)
     )
 
@@ -65,8 +61,6 @@ def validate_edit_fields(event_data):
         enum_check &= event_data.get("eventType") in EVENT_TYPE_ENUM
     if event_data.get("mode"):
         enum_check &= event_data.get("mode") in MODE_ENUM
-    if event_data.get("eventStatus"):
-        enum_check &= event_data.get("eventStatus") in EVENT_STATUS_ENUM
     if event_data.get("origin"):
         enum_check &= event_data.get("origin") in ORIGIN_ENUM
 
@@ -100,12 +94,12 @@ def list_events(filter_objects, search_term='', sort_by='', ascending=True):
     )
     return response.data
 
-def get_event_detail(event_id):
+def get_event_detail(signup_link):
     """
     Gets specificevent details
 
     Args:
-        event_id (string): unique UUID of event
+        signup_link (string): unique signup_link of event
 
     Returns:
         dict: data of one event
@@ -114,7 +108,7 @@ def get_event_detail(event_id):
         database_service.get_db()
         .table("Event")
         .select("*")
-        .eq("eventId", event_id)
+        .eq("signupLink", signup_link)
         .execute()
     )
     if len(response.data) == 1:
@@ -128,19 +122,9 @@ def create_event(event_data, user_id):
         user_id (string): UUID of user that creates the event
 
     Returns:
-        string: unique UUID of the inserted data (empty string if failed)
+        string: unique signupLink of the inserted data (empty string if failed)
     """
-
-    # ensure creation of unique UUID
-    event_id = str(uuid.uuid4())
-    retrieved_event = get_event_detail(event_id)
-    while (retrieved_event != {}):
-        event_id = str(uuid.uuid4())
-
-    created_user_id = user_id
-
-    event_data['eventId'] = str(event_id)
-    event_data['createdUserId'] = str(created_user_id)
+    event_data['createdUserId'] = str(user_id)
     response = (
         database_service.get_db()
         .table('Event')
@@ -149,34 +133,34 @@ def create_event(event_data, user_id):
     )
 
     if len(response.data) == 1:
-        return event_id
+        return event_data['signupLink']
     return ''
 
-def edit_event(event_id, update_data):
+def edit_event(signup_link, update_data):
     """
     Args:
-        event_id (string): event UUID
+        signup_link (string): event signup link
         update_data (dict): event details to be updated
 
     Returns:
-        string: unique UUID of the updated data (empty string if failed)
+        string: unique signup_link of the updated data (empty string if failed)
     """
     response = (
         database_service.get_db()
         .table('Event')
         .update(update_data)
-        .eq('eventId', event_id)
+        .eq('signupLink', signup_link)
         .execute()
     )
 
     if len(response.data) == 1:
-        return event_id
+        return signup_link
     return ''
 
-def delete_event(event_id):
+def delete_event(signup_link):
     """
     Args:
-        event_id (string): event UUID
+        signup_link (string): event signup link
 
     Returns:
         string: unique UUID of the deleted data (empty string if failed)
@@ -185,9 +169,9 @@ def delete_event(event_id):
         database_service.get_db()
         .table("Event")
         .delete()
-        .eq("eventId", event_id)
+        .eq("signupLink", signup_link)
         .execute()
     )
     if len(response.data) == 1:
-        return event_id
+        return signup_link
     return ''

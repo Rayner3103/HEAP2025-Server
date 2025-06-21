@@ -1,5 +1,6 @@
 # from supabase import create_client, Client
-import supabase
+from supabase import create_client, Client
+from supabase.lib.client_options import ClientOptions
 from dotenv import load_dotenv
 import os
 
@@ -8,13 +9,23 @@ try:
 
     url: str = os.environ.get('SUPABASE_URL')
     key: str = os.environ.get('SUPABASE_KEY_SERVICE_ROLE')
-    db: supabase.Client = supabase.create_client(supabase_url=url, supabase_key=key)
+    db: Client = create_client(supabase_url=url, supabase_key=key)
     print('SuperBase client created.')
 except Exception as e:
     print("Error initiating SuperBase client", e)
 
 def get_db():
     return db
+
+def get_auth_admin():
+    return create_client(
+        os.environ.get('SUPABASE_URL'),
+        os.environ.get('SUPABASE_KEY_SERVICE_ROLE'),
+        options=ClientOptions(
+            auto_refresh_token=False,
+            persist_session=False,
+        )
+    )
 
 # for devs
 def get_root_user_id():

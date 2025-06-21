@@ -1,7 +1,11 @@
+from supabase import AuthApiError
 from services import database as database_service
 
 def validate_user_session(headers):
     jwt  = headers.get("Authorization", "").replace("Bearer ", "")
+    if jwt == '':
+        raise AuthApiError
+
     response = (
         database_service.get_db()
         .auth

@@ -3,20 +3,20 @@ from services import database as database_service
 from services import utils
 
 ALLOWED_FIELDS = {
-    "pastEventIds",
     "name",
-    "password",
     "age",
     "gender",
     "nationality",
-    "mobileNumber",
+    "teleUsername",
     "email",
     "organisation",
     "interests",
-    "role"
+    "role",
+    "userId",
+    "password"
 }
 
-REQUIRED_FIELDS = {"password", "email", "role", "gender", "nationality"}
+REQUIRED_FIELDS = {"email", "role", "gender", "nationality", 'password'}
 
 GENDER_ENUM = {"male", "female", "others"}
 NATIONALITY_ENUM = {"Citizen", "Resident", "Others"}
@@ -98,14 +98,23 @@ def create_user(user_data):
     Returns:
         string: unique UUID of the inserted data (empty string if failed)
     """
+    # sign up an account
+    response = (
+        database_service.get_db()
+        .auth
+        .sign_up({
+            "email": user_data['email'],
+            'password': user_data['password']
+        })
+    )
 
-    # ensure creation of unique UUID
-    user_id = uuid.uuid4()
-    retrieved_user = get_user_detail(user_id)
-    while (retrieved_user != {}):
-        user_id = uuid.uuid4()
+    if not response.user.id:
+        return ''
+    
+    user_id = response.user.id
 
     user_data['userId'] = str(user_id)
+    user_data.pop('password', None)
     response = (
         database_service.get_db()
         .table('User')
@@ -153,6 +162,13 @@ def delete_user(user_id):
         .eq("userId", user_id)
         .execute()
     )
-    if len(response.data) == 1:
-        return user_id
-    return ''
+    if len(response.data) != 1:
+        return ''
+    
+    response = (
+        database_service.get_auth_admin()
+        .auth
+        .admin
+        .delete_user(user_id)
+    )
+    return user_id
