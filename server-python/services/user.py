@@ -1,6 +1,8 @@
-import uuid
 from services import database as database_service
 from services import utils
+
+#TODO: add in codes to accommodate userInterest
+
 
 ALLOWED_FIELDS = {
     "name",
