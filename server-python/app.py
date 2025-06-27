@@ -2,6 +2,8 @@ from flask import Flask, request
 from flask_cors import CORS
 from flask_apscheduler import APScheduler
 
+import json
+
 from supabase import AuthApiError
 
 from services import web as web_service
@@ -9,6 +11,7 @@ from services import event as event_service
 from services import user as user_service
 from services import asset as asset_service
 from services import auth as auth_service
+from services import webscrape as webscrape_service
 
 class Config:
 	SCHEDULER_API_ENABLED = True
@@ -29,14 +32,17 @@ CORS(
 scheduler = APScheduler()
 scheduler.init_app(app)
 
-@scheduler.task('cron', id='do_job_2', minute='*')
+@scheduler.task('cron', id='do_job_2', minute='*/5')
 def job2():
-	print('Job 2 executed')
-scheduler.start()
+	print('Scrapping...')
+	data = webscrape_service.scrape(print_mode="critical")
+	with open('output.json', 'w') as f:
+		json.dump(data, f, indent=2, ensure_ascii=False)
+	print('Scrapping ended.')
+# scheduler.start()
 
 @app.route("/event", methods=["GET", "POST", "PATCH", "DELETE"])
 def event():
-	# TODO: make GET, PATCH, DELETE accessible to only those created the event
 	match request.method:
 		case "GET": # getting event details
 			
@@ -163,7 +169,6 @@ def event():
 		
 @app.route("/user", methods=["GET", "POST", "PATCH", "DELETE"])
 def user():
-	# TODO: make GET, PATCH, DELETE accessible to only the user itself
 	match request.method:
 		case "GET": # get user profile data
 			# authentication
