@@ -6,4 +6,4 @@ beautifulsoup4
 requests
 html5lib
 lxml
-google-generativeai
+google-genai
