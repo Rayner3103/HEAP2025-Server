@@ -23,12 +23,7 @@ def sign_in(email, password):
         .auth
         .sign_in_with_password(payload)
     )
-    return response.session.access_token
-
-def sign_out():
-    response = (
-        database_service.get_db()
-        .auth
-        .sign_out()
-    )
-    return response
+    return {
+        'token': response.session.access_token,
+        'id': response.user.id
+    }
