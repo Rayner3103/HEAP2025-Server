@@ -32,20 +32,26 @@ CORS(
 scheduler = APScheduler()
 scheduler.init_app(app)
 
-@scheduler.task('cron', id='do_job_2', minute='*/5')
-def job2():
-	print('Scrapping...')
-	data = webscrape_service.scrape(print_mode="critical")
-	with open('output.json', 'w') as f:
-		json.dump(data, f, indent=2, ensure_ascii=False)
-	print('Scrapping ended.')
+# @scheduler.task('cron', id='do_job_2', minute='*/5')
+# def job2():
+# 	print('Scrapping...')
+# 	data = webscrape_service.scrape(print_mode="critical")
+# 	with open('output.json', 'w') as f:
+# 		json.dump(data, f, indent=2, ensure_ascii=False)
+# 	print('Scrapping ended.')
 # scheduler.start()
+
+@app.route("/get_all", methods=["GET"])
+def get_all():
+	if request.method != "GET":
+		return web_service.sendMethodNotAllowed()
+	
+	return web_service.sendSuccess(event_service.list_events())
 
 @app.route("/event", methods=["GET", "POST", "PATCH", "DELETE"])
 def event():
 	match request.method:
 		case "GET": # getting event details
-			
 			try:
 				signup_link = request.args['signupLink']
 			except:
@@ -73,6 +79,8 @@ def event():
 			
 			try:
 				event_data = dict(request.form)
+				tags = request.form.getlist('tags')
+				event_data['tags'] = tags
 			except:
 				return web_service.sendBadRequest("Invalid request body")
 			
@@ -206,12 +214,12 @@ def user():
 			try:
 				if (not user_service.validate_create_fields(user_data)):
 					return web_service.sendBadRequest("User data is invalid")
-				
+
 				result = user_service.create_user(user_data)
 				if result == "":
 					return web_service.sendInternalError("Unable to create user")
 				return web_service.sendSuccess(result)
-			except Exception as e:
+			except Exception as e:				
 				return web_service.sendInternalError('Cannot create an account')
 		case "PATCH": # update user profile
 			# authentication
@@ -276,7 +284,6 @@ def user():
 					return web_service.sendInternalError("Unable to delete user")
 				return web_service.sendSuccess(result)
 			except Exception as e:
-				print(e)
 				return web_service.sendInternalError('Cannot delete user')
 		case _:
 			return web_service.sendMethodNotAllowed()
@@ -372,11 +379,12 @@ def login():
 			except:
 				return web_service.sendBadRequest("Invalid request body")
 			try:
-				token = auth_service.sign_in(email, password)
-				return web_service.sendSuccess({"access_token": token})
+				data = auth_service.sign_in(email, password)
+				return web_service.sendSuccess(data)
 			except AuthApiError as e:
 				return web_service.sendUnauthorised("Email or password is invalid")
 			except Exception as e:
+				print(e)
 				return web_service.sendInternalError("Unable to log in")
 		case _:
 			return web_service.sendMethodNotAllowed()

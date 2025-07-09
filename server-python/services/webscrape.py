@@ -299,7 +299,7 @@ def scrape_cordy():
         # Tags
         tags = [tag.get_text(strip=True) for tag in event.select('.text-block-18')]
 
-        # Organization
+        # Organisation
         org = event.select_one('.opp-cms-organisation')
         org = org.get_text(strip=True) if org else None
 
