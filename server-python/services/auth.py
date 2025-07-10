@@ -25,5 +25,6 @@ def sign_in(email, password):
     )
     return {
         'token': response.session.access_token,
-        'id': response.user.id
+        'id': response.user.id,
+        'email': response.user.email
     }
