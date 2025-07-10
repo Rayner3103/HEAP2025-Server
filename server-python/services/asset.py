@@ -10,10 +10,10 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # This will create the folder if it d
 def validate_asset_id(asset_id):
     return asset_id in [f for f in os.listdir(UPLOAD_FOLDER)]
 
-def link_asset(signupLink, asset_id):
+def link_asset(event_Id, asset_id):
     """
     Args:
-        signupLink (string): event signupLink
+        event_Id (string): event eventId
         asset_id (string): asset UUID
 
     Return:
@@ -25,7 +25,7 @@ def link_asset(signupLink, asset_id):
         .table("AssetMap")
         .select("*")
         .eq("assetId", asset_id)
-        .eq("signupLink", signupLink)
+        .eq("eventId", event_Id)
         .execute()
     )
     if len(response.data) > 0:
@@ -36,7 +36,7 @@ def link_asset(signupLink, asset_id):
         database_service.get_db()
         .table("AssetMap")
         .insert(dict({
-            "signupLink": str(signupLink),
+            "eventId": str(event_Id),
             "assetId": str(asset_id)
         }))
         .execute()
@@ -66,10 +66,10 @@ def link_asset(signupLink, asset_id):
 
     return len(response.data) == 1
 
-def unlink_asset(signupLink, asset_id):
+def unlink_asset(event_Id, asset_id):
     """
     Args:
-        signupLink (string): event signupLink
+        event_Id (string): event eventId
         asset_id (string): asset UUID
 
     Return:
@@ -80,7 +80,7 @@ def unlink_asset(signupLink, asset_id):
         database_service.get_db()
         .table("AssetMap")
         .delete()
-        .eq("signupLink", signupLink)
+        .eq("eventId", event_Id)
         .eq("assetId", asset_id)
         .execute()
     )
