@@ -10,6 +10,9 @@ from google.genai import types
 from dotenv import load_dotenv
 from datetime import datetime
 
+from services import event as event_service
+from services import database as database_service
+
 # Code is structured as the following:
 #   (1) Helper functions
 #   (2) Scraping for websites
@@ -242,7 +245,7 @@ def format_date(date_str):
     if PRINT_MODE == 3 : print(f"format_date(): Formatting date.")
     if date_str == "":
         if PRINT_MODE == 3 : print(f"format_date(): Empty date.")
-        return ""
+        return None
     DATE_STR_FORMATS = (
         "%b %d, %Y", # SG Innovate date format
         "%B %d, %Y", # Cordy date format
@@ -253,11 +256,25 @@ def format_date(date_str):
             if PRINT_MODE == 3 : print(f"format_date(): Successfully formatted date.")
             return date.strftime("%d %B %Y")
         except Exception as e:
-            print(e)
             continue
     if PRINT_MODE >= 2 : print(f"format_date(): ERROR: Date format not recognized.\nInput: {date_str}.")
     if DEBUG_MODE : debug_mode_input()
-    return date_str
+    return None
+
+def insert_to_database(data):
+    # If it is the first time running, get the root user login details
+    if 'user_id' not in globals():
+        global user_id
+        user_id = database_service.get_root_user_id()
+
+    # Insert entry into the database
+    # Detects if it was not inserted properly
+    for entry in data:
+        signup_link = entry['signupLink']
+        return_str = event_service.create_event(entry, user_id=user_id)
+        if return_str != signup_link:
+            if PRINT_MODE >= 2 : print(f"insert_to_database(): Error: Unable to insert data entry with link {signup_link}.")
+            if DEBUG_MODE : debug_mode_input()
 
 # (2) ---------------------- SCRAPER FUNCTIONS ----------------------
 
@@ -320,6 +337,7 @@ def scrape_cordy():
             "briefDescription": desc,
             "image": img,
             "origin": "web",
+            "mode": "unknown",
         })
         if PRINT_MODE == 3 : print(f"scrape_cordy(): Successfully added {title}")
         
@@ -402,7 +420,7 @@ def scrape_innovate():
             'title': title[0].strip() if title else '',
             'link': 'https://www.sginnovate.com' + link[0] if link else '',
             'image': image[0] if image else '',
-            'date': format_date(date[0].strip()) if date else '',
+            'signupDeadline': format_date(date[0].strip()) if date else None,
             'signupLink': register_link[0] if register_link else '',
             'tags': [tag.strip() for tag in tags if tag.strip() and not tag.startswith('+')],
             'origin': 'web'
@@ -464,13 +482,16 @@ def scrape_innovate():
 
 # (3) ---------------------- MAIN FUNCTIONS ----------------------
 
-def scrape(print_mode='Off', debug_mode=False):
+def scrape(print_mode='Off', debug_mode=False, return_data=False):
     # quite_mode has 3 options:
     #   (1) off
     #   (2) critical
     #   (3) all
     # debug_mode:
     #   Pass in True to enable user inputs for decisions
+    # return_data:
+    #   Pass in True to enable returning the list of JSON after scraping
+    #   Else, the scraped data will be inserted into the database.
     global PRINT_MODE
     global DEBUG_MODE
     match print_mode:
@@ -487,7 +508,15 @@ def scrape(print_mode='Off', debug_mode=False):
     cordy_data = scrape_cordy()
     sginnovate_data = scrape_innovate()
     if PRINT_MODE == 3 : print(f"scrape(): Scraping completed.")
-    return list(cordy_data) + list(sginnovate_data)
+    data = list(cordy_data) + list(sginnovate_data)
+    if return_data:
+        if PRINT_MODE == 3 : print(f"scrape(): Returning data.")
+        return data
+    else:
+        if PRINT_MODE == 3 : print(f"scrape(): Inserting data into database.")
+        insert_to_database(data)
+        if PRINT_MODE == 3 : print(f"scrape(): Insert successful.")
+    
 
 # (4) ---------------------- SAMPLE RUN CODE ----------------------
 # if __name__ == "__main__":
@@ -497,3 +526,28 @@ def scrape(print_mode='Off', debug_mode=False):
 #     # To save data locally
 #     with open('output.json', 'w') as f:
 #         json.dump(data, f, indent=2, ensure_ascii=False)
+
+    # with open('./services/output.json', 'r', encoding='utf-8') as f:
+    #     data = json.load(f)
+    # for j in data:
+    #     # change signupdeadline to none
+    #     # change date to signupdeadline
+    #     # try:
+    #     #     j['signupDeadline'] = j['date']
+    #     #     j.pop('date', None)
+    #     # except:
+    #     #     pass
+    #     # try:
+    #     #     if j['signupDeadline'] == '':
+    #     #         j['signupDeadline'] = None
+    #     # except:
+    #     #     pass
+    # insert_to_database(data)
+
+    # data = scrape(print_mode="all", return_data=True)
+    # try:
+    #     with open('output.json', 'w', encoding="utf-8") as f:
+    #         json.dump(data, f, indent=2, ensure_ascii=False)
+    # except:
+    #     pass
+    # insert_to_database(data)
