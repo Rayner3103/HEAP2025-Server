@@ -393,5 +393,9 @@ def serve_upload(filename):
     uploads_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
     return send_from_directory(uploads_dir, filename)
 
+@app.route('/health')
+def health():
+		return web_service.sendSuccess("Success")
+
 if __name__ == '__main__':
 	app.run(debug=False, port=10000, host='0.0.0.0')
