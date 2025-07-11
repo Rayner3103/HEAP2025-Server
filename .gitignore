@@ -1,1 +1,10 @@
 *.env
+
+# Ignore all __pycache__ folders and their contents recursively
+server-python/services/__pycache__/
+
+# Ignore everything in uploads folder
+server-python/uploads/
+
+# Ignore everything in uploads/temp folder
+server-python/uploads/temp/

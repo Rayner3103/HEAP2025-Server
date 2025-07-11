@@ -1,4 +1,5 @@
-from flask import Flask, request
+import os
+from flask import Flask, request, send_from_directory
 from flask_cors import CORS
 from flask_apscheduler import APScheduler
 
@@ -37,25 +38,30 @@ def job2():
 	print('Scrapping...')
 	webscrape_service.scrape(print_mode="critical")
 	print('Scrapping ended.')
-# scheduler.start()
+
+@app.route("/get_all", methods=["GET"])
+def get_all():
+	if request.method != "GET":
+		return web_service.sendMethodNotAllowed()
+	
+	return web_service.sendSuccess(event_service.list_events())
 
 @app.route("/event", methods=["GET", "POST", "PATCH", "DELETE"])
 def event():
 	match request.method:
 		case "GET": # getting event details
-			
 			try:
-				signup_link = request.args['signupLink']
+				event_id = request.args['eventId']
 			except:
 				return web_service.sendBadRequest("Invalid request body")
 			
 			try:
-				event = event_service.get_event_detail(signup_link)
+				event = event_service.get_event_detail(event_id)
 				if (event == {}):
 					return web_service.sendBadRequest("Event not exists")
 				return web_service.sendSuccess(event)
 			except Exception:
-				return web_service.sendInternalError('Unable to retrieve event')
+				return web_service.sendInternalError('Invalid event ID')
 		case "POST": # creating event
 			# authentication
 			try:
@@ -71,14 +77,16 @@ def event():
 			
 			try:
 				event_data = dict(request.form)
+				tags = request.form.getlist('tags')
+				event_data['tags'] = tags
 			except:
 				return web_service.sendBadRequest("Invalid request body")
 			
 			try:
 				if (not event_service.validate_create_fields(event_data)):
 					return web_service.sendBadRequest("Event data is invalid")
-				signup_link = event_service.create_event(event_data, user_id)
-				if signup_link == "":
+				event_id = event_service.create_event(event_data, user_id)
+				if event_id == "":
 					return web_service.sendInternalError("Cannot create event")
 				
 				# handle file uploads
@@ -88,10 +96,10 @@ def event():
 						asset_id = asset_service.create_asset(file)
 						if asset_id == "":
 							return web_service.sendInternalError("Cannot create asset")
-						link_success = asset_service.link_asset(signup_link, asset_id)
+						link_success = asset_service.link_asset(event_id, asset_id)
 						if not link_success:
 							return web_service.sendInternalError("Cannot link asset")
-				return web_service.sendSuccess(signup_link)
+				return web_service.sendSuccess(event_id)
 			except Exception:
 				return web_service.sendInternalError('Cannot create event')
 		case "PATCH": # updating event
@@ -109,7 +117,7 @@ def event():
 			
 			try:
 				update_data = request.get_json()['updateData']
-				signup_link = request.get_json()['signupLink']
+				event_id = request.get_json()['eventId']
 			except:
 				return web_service.sendBadRequest("Invalid request body")
 			
@@ -117,14 +125,14 @@ def event():
 				if (not event_service.validate_edit_fields(update_data)):
 					return web_service.sendBadRequest("Event data is invalid")
 
-				event = event_service.get_event_detail(signup_link)
+				event = event_service.get_event_detail(event_id)
 				if (event == {}):
 					return web_service.sendBadRequest("Event not exists")
 				
 				if (user['role'] != 'admin' and event['createdUserId'] != user_id):
 					return web_service.sendUnauthorised("You have no access to this event")
 
-				result = event_service.edit_event(signup_link, update_data)
+				result = event_service.edit_event(event_id, update_data)
 				if result == "":
 					return web_service.sendInternalError("Unable to edit event")
 				return web_service.sendSuccess(result)
@@ -144,19 +152,19 @@ def event():
 				return web_service.sendUnauthorised("You cannot delete an event")
 
 			try:
-				signup_link = request.get_json()['signupLink']
+				event_id = request.get_json()['eventId']
 			except:
 				return web_service.sendBadRequest("Invalid request body")
 			
 			try:
-				event = event_service.get_event_detail(signup_link)
+				event = event_service.get_event_detail(event_id)
 				if (event == {}):
 					return web_service.sendBadRequest("Event not exists")
 				
 				if (user['role'] != 'admin' and event['createdUserId'] != user_id):
 					return web_service.sendUnauthorised("You have no access to this event")
 				
-				result = event_service.delete_event(signup_link)
+				result = event_service.delete_event(event_id)
 				if (result == ""):
 					return web_service.sendInternalError("Unable to delete event")
 				return web_service.sendSuccess(result)
@@ -204,12 +212,12 @@ def user():
 			try:
 				if (not user_service.validate_create_fields(user_data)):
 					return web_service.sendBadRequest("User data is invalid")
-				
+
 				result = user_service.create_user(user_data)
 				if result == "":
 					return web_service.sendInternalError("Unable to create user")
 				return web_service.sendSuccess(result)
-			except Exception as e:
+			except Exception as e:				
 				return web_service.sendInternalError('Cannot create an account')
 		case "PATCH": # update user profile
 			# authentication
@@ -274,7 +282,6 @@ def user():
 					return web_service.sendInternalError("Unable to delete user")
 				return web_service.sendSuccess(result)
 			except Exception as e:
-				print(e)
 				return web_service.sendInternalError('Cannot delete user')
 		case _:
 			return web_service.sendMethodNotAllowed()
@@ -293,7 +300,7 @@ def asset():
 			
 			try:
 				req = dict(request.form)
-				signup_link = req["signupLink"]
+				event_id = req["eventId"]
 			except:
 				return web_service.sendBadRequest("Invalid request body")
 			
@@ -303,7 +310,7 @@ def asset():
 					return web_service.sendInternalError("Unexpected error. Please contact admin")
 				
 				# check if event existed
-				event = event_service.get_event_detail(signup_link)
+				event = event_service.get_event_detail(event_id)
 				if (event == {}):
 					return web_service.sendBadRequest("Event not exists")
 				
@@ -317,10 +324,10 @@ def asset():
 						asset_id = asset_service.create_asset(file)
 						if asset_id == "":
 							return web_service.sendInternalError("Cannot create asset")
-						link_success = asset_service.link_asset(signup_link, asset_id)
+						link_success = asset_service.link_asset(event_id, asset_id)
 						if not link_success:
 							return web_service.sendInternalError("Cannot link asset")
-				return web_service.sendSuccess(signup_link)
+				return web_service.sendSuccess(event_id)
 			except Exception as e:
 				return web_service.sendInternalError('Cannot upload file')
 		case "DELETE": # delete files
@@ -333,7 +340,7 @@ def asset():
 				return web_service.sendInternalError('Unable to perform authentication')
 			
 			try:
-				signup_link = request.get_json()['signupLink']
+				event_id = request.get_json()['eventId']
 				asset_id = request.get_json()['assetId']
 			except:
 				return web_service.sendBadRequest("Invalid request body")
@@ -343,7 +350,7 @@ def asset():
 				if (user == {}):
 					return web_service.sendInternalError("Unexpected error. Please contact admin")
 				
-				event = event_service.get_event_detail(signup_link)
+				event = event_service.get_event_detail(event_id)
 				if (event == {}):
 					return web_service.sendBadRequest("Event not exists")
 				if not asset_service.validate_asset_id(asset_id):
@@ -352,7 +359,7 @@ def asset():
 				if user['role'] != 'admin' and user_id != event['createdUserId']:
 					return web_service.sendUnauthorised("You cannot delete from this event")
 					
-				if asset_service.unlink_asset(signup_link, asset_id):
+				if asset_service.unlink_asset(event_id, asset_id):
 					return web_service.sendSuccess("Unlinked success")				
 				return web_service.sendInternalError("Unable to unlink asset")
 			except Exception as e:
@@ -370,14 +377,20 @@ def login():
 			except:
 				return web_service.sendBadRequest("Invalid request body")
 			try:
-				token = auth_service.sign_in(email, password)
-				return web_service.sendSuccess({"access_token": token})
+				data = auth_service.sign_in(email, password)
+				return web_service.sendSuccess(data)
 			except AuthApiError as e:
 				return web_service.sendUnauthorised("Email or password is invalid")
 			except Exception as e:
+				print(e)
 				return web_service.sendInternalError("Unable to log in")
 		case _:
 			return web_service.sendMethodNotAllowed()
+
+@app.route('/uploads/<path:filename>')
+def serve_upload(filename):
+    uploads_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+    return send_from_directory(uploads_dir, filename)
 
 if __name__ == '__main__':
 	app.run(debug=True)

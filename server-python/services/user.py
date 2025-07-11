@@ -1,9 +1,6 @@
 from services import database as database_service
 from services import utils
-
-#TODO: add in codes to accommodate userInterest
-
-
+# TODO: change password api
 ALLOWED_FIELDS = {
     "name",
     "age",
@@ -89,7 +86,18 @@ def get_user_detail(user_id):
         .execute()
     )
     if len(response.data) == 1:
-        return response.data[0]
+        user = response.data[0]
+        # Fetch interests
+        interests_response = (
+            database_service.get_db()
+            .table("UserInterest")
+            .select("interest")
+            .eq("userId", user_id)
+            .execute()
+        )
+        interests = [item["interest"] for item in interests_response.data] if interests_response.data else []
+        user["interests"] = interests
+        return user
     return {}
 
 def create_user(user_data):
@@ -117,6 +125,9 @@ def create_user(user_data):
 
     user_data['userId'] = str(user_id)
     user_data.pop('password', None)
+
+    interests = user_data.pop('interests', None)
+
     response = (
         database_service.get_db()
         .table('User')
@@ -125,6 +136,17 @@ def create_user(user_data):
     )
 
     if len(response.data) == 1:
+        interest_records = []
+        for interest in interests:
+            interest_records.append({ "userId": user_id, "interest": interest})
+
+        response = (
+            database_service.get_db()
+            .table('UserInterest')
+            .insert(interest_records)
+            .execute()
+        )
+
         return user_id
     return ''
 
@@ -137,6 +159,31 @@ def edit_user(user_id, update_data):
     Returns:
         string: unique UUID of the updated data (empty string if failed)
     """
+    # Handle interests update
+    if "interests" in update_data:
+        # Delete old interests
+        response = (
+            database_service.get_db()
+            .table('UserInterest')
+            .delete()
+            .eq('userId', user_id)
+            .execute()
+        )
+
+        interests = update_data.pop("interests")
+        if interests:
+            interest_records = [
+                {
+                    "userId": user_id, 
+                    "interest": interest
+                } for interest in interests
+            ]
+            response = (
+                database_service.get_db()
+                .table('UserInterest')
+                .insert(interest_records).execute()
+            )
+
     response = (
         database_service.get_db()
         .table('User')
@@ -157,6 +204,15 @@ def delete_user(user_id):
     Returns:
         string: unique UUID of the deleted data (empty string if failed)
     """
+    
+    response = (
+        database_service.get_db()
+        .table('UserInterest')
+        .delete()
+        .eq("userId", user_id)
+        .execute()
+    )
+
     response = (
         database_service.get_db()
         .table("User")

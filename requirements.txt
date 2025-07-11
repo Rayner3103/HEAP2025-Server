@@ -7,3 +7,4 @@ requests
 html5lib
 lxml
 google-genai
+Flask-APScheduler

@@ -1,9 +1,8 @@
 from services import database as database_service
 from services import utils
 
-#TODO: add in codes to accommodate eventTag
-
 ALLOWED_FIELDS = {
+    "eventId",
     "title",
     "briefDescription",
     "descripiton",
@@ -15,14 +14,16 @@ ALLOWED_FIELDS = {
     "venue",
     "signupDeadline",
     "signupLink",
-    "themes",
+    "tags",
     "origin",
+    "link",
+    "additionalInformation"
 }
 
 REQUIRED_FIELDS = {"title", "eventType", "mode", "origin"}
 
-EVENT_TYPE_ENUM = {"Talk", "Workshop", "Case Competition", "Hackathon", "Others"}
-MODE_ENUM = {"Offline", "Online", "Hybrid", "TBA"}
+EVENT_TYPE_ENUM = {"Talks", "Workshops", "Case Comps", "Hackathons", "Others"}
+MODE_ENUM = {"offline", "online", "hybrid", "tba", "unknown"}
 EVENT_STATUS_ENUM = {"active", "postponed", "cancelled"}
 ORIGIN_ENUM = {"web", "upload"}
 
@@ -35,7 +36,8 @@ def validate_create_fields(event_data):
 
     Returns:
         boolean: true if all fields are intact
-    """    
+    """
+
     return (
         # check if have extra fields
         (utils.validate_allowed_field(ALLOWED_FIELDS, event_data)) and
@@ -71,7 +73,7 @@ def validate_edit_fields(event_data):
     )
 
 
-def list_events(filter_objects, search_term='', sort_by='', ascending=True):
+def list_events():
     """
     list all events
 
@@ -84,23 +86,39 @@ def list_events(filter_objects, search_term='', sort_by='', ascending=True):
     Returns:
         list of dict: a list of all events
     """
-
-    # TODO: filtering function
+    db = database_service.get_db()
     response = (
-        database_service.get_db()
+        db
         .table("Event")
         .select("*")
-        .ilike("title", f"%{search_term}%")
         .execute()
     )
-    return response.data
+    events = response.data
 
-def get_event_detail(signup_link):
+    for i in range(len(events)):
+        event = events[i]
+
+        event_id = event['eventId']
+        response = (
+            db
+            .table("EventTag")
+            .select("*")
+            .eq('eventId', event_id)
+            .execute()
+        )
+        if response.data:
+            events[i]['tags'] = [data['tag'] for data in response.data]
+        else:
+            events[i]['tags'] = []
+
+    return events
+
+def get_event_detail(event_id):
     """
     Gets specificevent details
 
     Args:
-        signup_link (string): unique signup_link of event
+        event_id (string): unique event_id of event
 
     Returns:
         dict: data of one event
@@ -109,11 +127,25 @@ def get_event_detail(signup_link):
         database_service.get_db()
         .table("Event")
         .select("*")
-        .eq("signupLink", signup_link)
+        .eq("eventId", event_id)
         .execute()
     )
     if len(response.data) == 1:
-        return response.data[0]
+        event = response.data[0]
+
+        event_id = event['eventId']
+        response = (
+            database_service.get_db()
+            .table("EventTag")
+            .select("*")
+            .eq('eventId', event_id)
+            .execute()
+        )
+        if response.data:
+            event['tags'] = [data['tag'] for data in response.data]
+        else:
+            event['tags'] = []
+        return event
     return {}
 
 def create_event(event_data, user_id):
@@ -121,11 +153,12 @@ def create_event(event_data, user_id):
     Args:
         event_data (dict): event details
         user_id (string): UUID of user that creates the event
-
     Returns:
-        string: unique signupLink of the inserted data (empty string if failed)
+        string: unique eventId of the inserted data (empty string if failed)
     """
     event_data['createdUserId'] = str(user_id)
+    tags = event_data.pop('tags', None)
+    
     response = (
         database_service.get_db()
         .table('Event')
@@ -134,45 +167,89 @@ def create_event(event_data, user_id):
     )
 
     if len(response.data) == 1:
-        return event_data['signupLink']
+        tag_records = []
+        for tag in tags:
+            tag_records.append({ "eventId": event_data['eventId'], "tag": tag})
+
+        response = (
+            database_service.get_db()
+            .table('EventTag')
+            .insert(tag_records)
+            .execute()
+        )
+
+        return event_data['eventId']
     return ''
 
-def edit_event(signup_link, update_data):
+def edit_event(event_id, update_data):
     """
     Args:
-        signup_link (string): event signup link
+        event_id (string): event signup link
         update_data (dict): event details to be updated
 
     Returns:
-        string: unique signup_link of the updated data (empty string if failed)
+        string: unique event_id of the updated data (empty string if failed)
     """
+    # Handle tags update
+    if "tags" in update_data:
+        # Delete old tags
+        response = (
+            database_service.get_db()
+            .table('EventTag')
+            .delete()
+            .eq('eventId', event_id)
+            .execute()
+        )
+
+        tags = update_data.pop("interests")
+        if tags:
+            tag_records = [
+                {
+                    "eventId": event_id, 
+                    "tag": tag
+                } for tag in tags
+            ]
+            response = (
+                database_service.get_db()
+                .table('EventTag')
+                .insert(tag_records).execute()
+            )
+
     response = (
         database_service.get_db()
         .table('Event')
         .update(update_data)
-        .eq('signupLink', signup_link)
+        .eq('eventId', event_id)
         .execute()
     )
 
     if len(response.data) == 1:
-        return signup_link
+        return event_id
     return ''
 
-def delete_event(signup_link):
+def delete_event(event_id):
     """
     Args:
-        signup_link (string): event signup link
+        event_id (string): event signup link
 
     Returns:
         string: unique UUID of the deleted data (empty string if failed)
     """
     response = (
         database_service.get_db()
+        .table('EventTag')
+        .delete()
+        .eq("eventId", event_id)
+        .execute()
+    )
+    
+    response = (
+        database_service.get_db()
         .table("Event")
         .delete()
-        .eq("signupLink", signup_link)
+        .eq("eventId", event_id)
         .execute()
     )
     if len(response.data) == 1:
-        return signup_link
+        return event_id
     return ''
