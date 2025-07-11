@@ -40,6 +40,10 @@ def job2():
 	webscrape_service.scrape(print_mode="all")
 	print('Scrapping ended.')
 
+@app.route("/")
+def index():
+	return web_service.sendSuccess("Active")
+
 @app.route("/get_all", methods=["GET"])
 def get_all():
 	if request.method != "GET":
