@@ -167,9 +167,11 @@ def create_event(event_data, user_id):
     )
 
     if len(response.data) == 1:
+        event_id = response.data[0]['eventId']
         tag_records = []
         for tag in tags:
-            tag_records.append({ "eventId": event_data['eventId'], "tag": tag})
+            tag_records.append({ "eventId": event_id, "tag": tag})
+        tag_records = list(set(tag_records))
 
         response = (
             database_service.get_db()
@@ -178,7 +180,7 @@ def create_event(event_data, user_id):
             .execute()
         )
 
-        return event_data['eventId']
+        return event_id
     return ''
 
 def edit_event(event_id, update_data):

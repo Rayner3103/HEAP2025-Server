@@ -23,7 +23,8 @@ CORS(
 	app, 
 	origins=[
 		"http://localhost:5173",
-		"https://heap-2025-client-nxadv9yht-rayner3103s-projects.vercel.app"
+		"https://heap-2025-client-nxadv9yht-rayner3103s-projects.vercel.app",
+		"https://heap-2025-client.vercel.app"
 	], 
 	supports_credentials=True, 
 	methods=["GET", "POST", "OPTIONS", "DELETE", "PATCH"], 
@@ -36,7 +37,7 @@ scheduler.init_app(app)
 @scheduler.task('cron', id='do_job_2', minute='*/5')
 def job2():
 	print('Scrapping...')
-	webscrape_service.scrape(print_mode="critical")
+	webscrape_service.scrape(print_mode="all")
 	print('Scrapping ended.')
 
 @app.route("/get_all", methods=["GET"])

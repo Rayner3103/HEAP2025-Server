@@ -1,0 +1,10 @@
+flask
+flask-cors
+supabase
+python-dotenv
+beautifulsoup4
+requests
+html5lib
+lxml
+google-genai
+Flask-APScheduler
