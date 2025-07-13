@@ -1,5 +1,6 @@
 from services import database as database_service
 from services import utils
+import json
 
 ALLOWED_FIELDS = {
     "eventId",
@@ -20,7 +21,7 @@ ALLOWED_FIELDS = {
     "additionalInformation"
 }
 
-REQUIRED_FIELDS = {"title", "eventType", "mode", "origin"}
+REQUIRED_FIELDS = {"title", "eventType", "mode", "origin", "signupLink"}
 
 EVENT_TYPE_ENUM = {"Talks", "Workshops", "Case Comps", "Hackathons", "Others"}
 MODE_ENUM = {"offline", "online", "hybrid", "tba", "unknown"}
@@ -115,7 +116,7 @@ def list_events():
 
 def get_event_detail(event_id):
     """
-    Gets specificevent details
+    Gets specific event details
 
     Args:
         event_id (string): unique event_id of event
@@ -148,6 +149,30 @@ def get_event_detail(event_id):
         return event
     return {}
 
+def check_has_event_by_signup_link_and_name(signup_link, title):
+    """
+    Gets event that has the signup_link and name from db. Used to check duplicate events
+
+    Args:
+        signup_link (string): signup link of the event
+        title (string): title of event
+
+    Returns:
+        boolean: true if the event exists
+    """
+    response = (
+        database_service.get_db()
+        .table("Event")
+        .select("*")
+        .eq("signupLink", signup_link)
+        .eq("title", title)
+        .execute()
+    )
+    if len(response.data) > 0:
+        return True
+    return False
+
+
 def create_event(event_data, user_id):
     """
     Args:
@@ -157,7 +182,7 @@ def create_event(event_data, user_id):
         string: unique eventId of the inserted data (empty string if failed)
     """
     event_data['createdUserId'] = str(user_id)
-    tags = event_data.pop('tags', None)
+    tags = event_data.pop('tags', [])
     
     response = (
         database_service.get_db()
@@ -169,16 +194,19 @@ def create_event(event_data, user_id):
     if len(response.data) == 1:
         event_id = response.data[0]['eventId']
         tag_records = []
+        seen_tag = set()
         for tag in tags:
-            tag_records.append({ "eventId": event_id, "tag": tag})
-        tag_records = list(set(tag_records))
+            if tag not in seen_tag:
+                tag_records.append({ "eventId": event_id, "tag": tag})
+                seen_tag.add(tag)
 
-        response = (
-            database_service.get_db()
-            .table('EventTag')
-            .insert(tag_records)
-            .execute()
-        )
+        if len(tag_records) > 0:
+            response = (
+                database_service.get_db()
+                .table('EventTag')
+                .insert(tag_records)
+                .execute()
+            )
 
         return event_id
     return ''
@@ -203,8 +231,8 @@ def edit_event(event_id, update_data):
             .execute()
         )
 
-        tags = update_data.pop("interests")
-        if tags:
+        tags = update_data.pop("tags", [])
+        if len(tags) > 0:
             tag_records = [
                 {
                     "eventId": event_id, 

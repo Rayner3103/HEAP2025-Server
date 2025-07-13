@@ -1,5 +1,9 @@
 *.env
 
+*.json
+*.pyc
+server/node_modules/
+
 # Ignore all __pycache__ folders and their contents recursively
 server-python/services/__pycache__/
 

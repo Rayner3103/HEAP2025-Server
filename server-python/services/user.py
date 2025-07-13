@@ -124,9 +124,9 @@ def create_user(user_data):
     user_id = response.user.id
 
     user_data['userId'] = str(user_id)
-    user_data.pop('password', None)
+    user_data.pop('password', '')
 
-    interests = user_data.pop('interests', None)
+    interests = user_data.pop('interests', [])
 
     response = (
         database_service.get_db()
@@ -140,15 +140,33 @@ def create_user(user_data):
         for interest in interests:
             interest_records.append({ "userId": user_id, "interest": interest})
 
-        response = (
-            database_service.get_db()
-            .table('UserInterest')
-            .insert(interest_records)
-            .execute()
-        )
+        if len(interest_records) > 0:
+            response = (
+                database_service.get_db()
+                .table('UserInterest')
+                .insert(interest_records)
+                .execute()
+            )
 
         return user_id
     return ''
+
+def validate_user_email(email):
+    """
+    Args:
+        email (string): email to be checked against db
+
+    Returns:
+        boolean: if the email is an email of a valid user
+    """
+    response = (
+        database_service.get_db()
+        .table("User")
+        .select("*")
+        .eq("email", email)
+        .execute()
+    )
+    return len(response.data) >= 1
 
 def edit_user(user_id, update_data):
     """
@@ -170,8 +188,8 @@ def edit_user(user_id, update_data):
             .execute()
         )
 
-        interests = update_data.pop("interests")
-        if interests:
+        interests = update_data.pop("interests", [])
+        if len(interests) > 0:
             interest_records = [
                 {
                     "userId": user_id, 

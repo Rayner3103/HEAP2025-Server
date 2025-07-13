@@ -271,10 +271,11 @@ def insert_to_database(data):
     # Detects if it was not inserted properly
     for entry in data:
         signup_link = entry['signupLink']
+        print(signup_link)
         return_str = event_service.create_event(entry, user_id=user_id)
-        if return_str != signup_link:
-            if PRINT_MODE >= 2 : print(f"insert_to_database(): Error: Unable to insert data entry with link {signup_link}.")
-            if DEBUG_MODE : debug_mode_input()
+        # if return_str != signup_link:
+        #     if PRINT_MODE >= 2 : print(f"insert_to_database(): Error: Unable to insert data entry with link {signup_link}.")
+        #     if DEBUG_MODE : debug_mode_input()
 
 # (2) ---------------------- SCRAPER FUNCTIONS ----------------------
 
@@ -509,6 +510,13 @@ def scrape(print_mode='Off', debug_mode=False, return_data=False):
     sginnovate_data = scrape_innovate()
     if PRINT_MODE == 3 : print(f"scrape(): Scraping completed.")
     data = list(cordy_data) + list(sginnovate_data)
+    try:
+        with open('output.json', 'w', encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+    except:
+        pass
+
+
     if return_data:
         if PRINT_MODE == 3 : print(f"scrape(): Returning data.")
         return data

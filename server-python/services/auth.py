@@ -18,13 +18,27 @@ def sign_in(email, password):
         "email": email,
         "password": password
     }
+
+    result = dict()
+    
     response = (
         database_service.get_db()
         .auth
         .sign_in_with_password(payload)
     )
-    return {
-        'token': response.session.access_token,
-        'id': response.user.id,
-        'email': response.user.email
-    }
+
+    result['token'] = response.session.access_token
+    result['id'] = response.user.id
+    result['email'] = response.user.email
+
+    response = (
+        database_service.get_db()
+        .table("User")
+        .select("*")
+        .eq("userId", response.user.id)
+        .execute()
+    )
+
+    result['role'] = response.data[0]['role']
+
+    return result
