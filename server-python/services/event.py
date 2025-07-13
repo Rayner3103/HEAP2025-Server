@@ -6,7 +6,7 @@ ALLOWED_FIELDS = {
     "eventId",
     "title",
     "briefDescription",
-    "descripiton",
+    "description",
     "eventType",
     "organisers",
     "startTime",

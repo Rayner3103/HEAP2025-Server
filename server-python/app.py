@@ -1,3 +1,4 @@
+# TODO: Serve out the url of the image of the event. 
 import os
 from flask import Flask, request, send_from_directory
 from flask_cors import CORS
@@ -85,6 +86,7 @@ def event():
 			try:
 				event_data = dict(request.form)
 				tags = request.form.getlist('tags')
+				event_data.pop("image", '')
 				event_data['tags'] = tags
 			except:
 				return web_service.sendBadRequest("Invalid request body")				
@@ -101,7 +103,7 @@ def event():
 					return web_service.sendInternalError("Cannot create event")
 				
 				# handle file uploads
-				files = request.files.getlist("file")
+				files = request.files.getlist("image")
 				for file in files:
 					if file.filename != '':
 						asset_id = asset_service.create_asset(file)
@@ -229,7 +231,6 @@ def user():
 					return web_service.sendInternalError("Unable to create user")
 				return web_service.sendSuccess(result)
 			except Exception as e:
-				print('error', e)
 				return web_service.sendInternalError('Cannot create an account')
 		case "PATCH": # update user profile
 			# authentication
@@ -398,7 +399,6 @@ def login():
 			except AuthApiError as e:
 				return web_service.sendUnauthorised("Wrong password")
 			except Exception as e:
-				print(e)
 				return web_service.sendInternalError("Unable to log in")
 		case _:
 			return web_service.sendMethodNotAllowed()

@@ -136,6 +136,7 @@ def create_asset(asset):
         if (f == "temp"):
             continue
         if utils.files_are_equal(os.path.join(UPLOAD_FOLDER, f), asset):
+            asset.seek(0)
             asset_id = str(f)
             return asset_id
     
@@ -146,6 +147,7 @@ def create_asset(asset):
         asset_id = str(uuid.uuid4())
 
     # save asset
+    asset.seek(0)
     asset.save(os.path.join(UPLOAD_FOLDER, asset_id))
 
     # insert and entry in db
