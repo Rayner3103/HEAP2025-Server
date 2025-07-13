@@ -38,6 +38,11 @@ def validate_create_fields(event_data):
     Returns:
         boolean: true if all fields are intact
     """
+    # print(utils.validate_allowed_field(ALLOWED_FIELDS, event_data)) 
+    # print(utils.validate_required_field(REQUIRED_FIELDS, event_data)) 
+    # print(event_data.get("eventType") in EVENT_TYPE_ENUM) 
+    # print(event_data.get("mode") in MODE_ENUM) 
+    # print(event_data.get("origin") in ORIGIN_ENUM)
 
     return (
         # check if have extra fields
@@ -77,12 +82,6 @@ def validate_edit_fields(event_data):
 def list_events():
     """
     list all events
-
-    Args:
-        filter_object (list of dict): a list of filter objects
-        search_term (string): string to be matched with the title of the event
-        sort_by (string): column name that we need to sort by
-        ascending (boolean): boolean to show if we sort by ascending
 
     Returns:
         list of dict: a list of all events

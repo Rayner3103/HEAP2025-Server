@@ -52,7 +52,16 @@ def get_all():
 	if request.method != "GET":
 		return web_service.sendMethodNotAllowed()
 	
-	return web_service.sendSuccess(event_service.list_events())
+	try:
+		events = event_service.list_events()
+		assets = asset_service.get_all_assets()
+		for event in events:
+			if not event['image']:
+				event['image'] = assets[event['eventId']]
+
+		return web_service.sendSuccess(events)
+	except:
+		return web_service.sendInternalError("Unable to fetch events")
 
 @app.route("/event", methods=["GET", "POST", "PATCH", "DELETE"])
 def event():
@@ -67,6 +76,9 @@ def event():
 				event = event_service.get_event_detail(event_id)
 				if (event == {}):
 					return web_service.sendBadRequest("Event not exists")
+
+				if (not event['image']):
+					event['image'] = asset_service.get_assets_by_event_id(event_id)
 				return web_service.sendSuccess(event)
 			except Exception:
 				return web_service.sendInternalError('Invalid event ID')
