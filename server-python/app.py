@@ -40,6 +40,8 @@ def job2():
 	webscrape_service.scrape(print_mode="all")
 	print('Scrapping ended.')
 
+# job2()
+
 @app.route("/")
 def index():
 	return web_service.sendSuccess("Active")
@@ -85,11 +87,15 @@ def event():
 				tags = request.form.getlist('tags')
 				event_data['tags'] = tags
 			except:
-				return web_service.sendBadRequest("Invalid request body")
+				return web_service.sendBadRequest("Invalid request body")				
 			
 			try:
 				if (not event_service.validate_create_fields(event_data)):
 					return web_service.sendBadRequest("Event data is invalid")
+
+				if event_service.check_has_event_by_signup_link_and_name(event_data['signupLink'], event_data['title']):
+					return web_service.sendBadRequest("Event already exists")
+
 				event_id = event_service.create_event(event_data, user_id)
 				if event_id == "":
 					return web_service.sendInternalError("Cannot create event")
@@ -222,7 +228,8 @@ def user():
 				if result == "":
 					return web_service.sendInternalError("Unable to create user")
 				return web_service.sendSuccess(result)
-			except Exception as e:				
+			except Exception as e:
+				print('error', e)
 				return web_service.sendInternalError('Cannot create an account')
 		case "PATCH": # update user profile
 			# authentication
@@ -381,11 +388,15 @@ def login():
 				password = request.get_json()['password']
 			except:
 				return web_service.sendBadRequest("Invalid request body")
+
+			if (not user_service.validate_user_email(email)):
+				return web_service.sendBadRequest("Email not found. Please create an account first.")
+
 			try:
 				data = auth_service.sign_in(email, password)
 				return web_service.sendSuccess(data)
 			except AuthApiError as e:
-				return web_service.sendUnauthorised("Email or password is invalid")
+				return web_service.sendUnauthorised("Wrong password")
 			except Exception as e:
 				print(e)
 				return web_service.sendInternalError("Unable to log in")
