@@ -35,13 +35,13 @@ CORS(
 scheduler = APScheduler()
 scheduler.init_app(app)
 
-@scheduler.task('cron', id='do_job_2', minute='*/5')
-def job2():
+@scheduler.task('cron', id='do_scrape', minute='0', hour='1')
+def scrape():
 	print('Scrapping...')
 	webscrape_service.scrape(print_mode="all")
 	print('Scrapping ended.')
 
-# job2()
+scheduler.start()
 
 @app.route("/")
 def index():
