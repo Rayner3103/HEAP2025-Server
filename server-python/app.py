@@ -57,7 +57,7 @@ def get_all():
 		assets = asset_service.get_all_assets()
 		for event in events:
 			if not event['image']:
-				event['image'] = assets[event['eventId']]
+				event['image'] = assets.get(event['eventId'])
 
 		return web_service.sendSuccess(events)
 	except:
@@ -125,7 +125,7 @@ def event():
 						if not link_success:
 							return web_service.sendInternalError("Cannot link asset")
 				return web_service.sendSuccess(event_id)
-			except Exception:
+			except Exception as e:
 				return web_service.sendInternalError('Cannot create event')
 		case "PATCH": # updating event
 			# authentication

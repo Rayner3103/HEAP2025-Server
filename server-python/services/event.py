@@ -8,11 +8,11 @@ ALLOWED_FIELDS = {
     "briefDescription",
     "description",
     "eventType",
-    "organisers",
+    "organisation",
     "startTime",
     "endTime",
     "mode",
-    "venue",
+    "location",
     "signupDeadline",
     "signupLink",
     "tags",
@@ -38,12 +38,6 @@ def validate_create_fields(event_data):
     Returns:
         boolean: true if all fields are intact
     """
-    # print(utils.validate_allowed_field(ALLOWED_FIELDS, event_data)) 
-    # print(utils.validate_required_field(REQUIRED_FIELDS, event_data)) 
-    # print(event_data.get("eventType") in EVENT_TYPE_ENUM) 
-    # print(event_data.get("mode") in MODE_ENUM) 
-    # print(event_data.get("origin") in ORIGIN_ENUM)
-
     return (
         # check if have extra fields
         (utils.validate_allowed_field(ALLOWED_FIELDS, event_data)) and
