@@ -6,13 +6,13 @@ ALLOWED_FIELDS = {
     "eventId",
     "title",
     "briefDescription",
-    "descripiton",
+    "description",
     "eventType",
-    "organisers",
+    "organisation",
     "startTime",
     "endTime",
     "mode",
-    "venue",
+    "location",
     "signupDeadline",
     "signupLink",
     "tags",
@@ -38,7 +38,6 @@ def validate_create_fields(event_data):
     Returns:
         boolean: true if all fields are intact
     """
-
     return (
         # check if have extra fields
         (utils.validate_allowed_field(ALLOWED_FIELDS, event_data)) and
@@ -77,12 +76,6 @@ def validate_edit_fields(event_data):
 def list_events():
     """
     list all events
-
-    Args:
-        filter_object (list of dict): a list of filter objects
-        search_term (string): string to be matched with the title of the event
-        sort_by (string): column name that we need to sort by
-        ascending (boolean): boolean to show if we sort by ascending
 
     Returns:
         list of dict: a list of all events

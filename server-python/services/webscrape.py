@@ -381,7 +381,7 @@ def scrape_cordy():
 
 def scrape_innovate():
     # The following fields cannot be found from the cordy website:
-    #   (1) organisers
+    #   (1) organisation
     #   (2) startTime & endTime due to inconsistency -> schedule is put in additional information
     if PRINT_MODE >= 2 : print(f"scrape_innovate(): Starting.")
     URL = "https://www.sginnovate.com/events"

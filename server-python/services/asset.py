@@ -5,15 +5,61 @@ from services import database as database_service
 from services import utils
 
 UPLOAD_FOLDER = './uploads'
+SERVER_ASSET_PATH = os.getenv("SERVER_ASSET_PATH")
+
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # This will create the folder if it doesn't exist
 
 def validate_asset_id(asset_id):
     return asset_id in [f for f in os.listdir(UPLOAD_FOLDER)]
 
-def link_asset(event_Id, asset_id):
+def get_assets_by_event_id(event_id):
+    """
+    Args: 
+        event_id (string): event id that is realted to the assets
+
+    Return:
+        array of string: a list of paths to the asset access route (e.g. https://localhost:5000/uploads/<asset_id>)
+    """
+    response = (
+        database_service.get_db()
+        .table("AssetMap")
+        .select("*")
+        .eq("eventId", event_id)
+        .execute()
+    )
+
+    result = []
+    if (response and response.data):
+        for record in response.data:
+            result.append(SERVER_ASSET_PATH + record['assetId'])
+
+    return result   
+         
+def get_all_assets():
+    """
+    Return:
+        array of tuple (event_id, paths to the asset): all records in the assetMap table
+    """
+    response = (
+        database_service.get_db()
+        .table("AssetMap")
+        .select("*")
+        .execute()
+    )
+
+    result = dict()
+    if (response and response.data):
+        for record in response.data:
+            if record['eventId'] not in result:
+                result[record['eventId']] = []
+            result[record['eventId']].append((SERVER_ASSET_PATH + record['assetId']))
+
+    return result       
+
+def link_asset(event_id, asset_id):
     """
     Args:
-        event_Id (string): event eventId
+        event_id (string): event eventId
         asset_id (string): asset UUID
 
     Return:
@@ -25,7 +71,7 @@ def link_asset(event_Id, asset_id):
         .table("AssetMap")
         .select("*")
         .eq("assetId", asset_id)
-        .eq("eventId", event_Id)
+        .eq("eventId", event_id)
         .execute()
     )
     if len(response.data) > 0:
@@ -36,7 +82,7 @@ def link_asset(event_Id, asset_id):
         database_service.get_db()
         .table("AssetMap")
         .insert(dict({
-            "eventId": str(event_Id),
+            "eventId": str(event_id),
             "assetId": str(asset_id)
         }))
         .execute()
@@ -136,6 +182,7 @@ def create_asset(asset):
         if (f == "temp"):
             continue
         if utils.files_are_equal(os.path.join(UPLOAD_FOLDER, f), asset):
+            asset.seek(0)
             asset_id = str(f)
             return asset_id
     
@@ -146,6 +193,7 @@ def create_asset(asset):
         asset_id = str(uuid.uuid4())
 
     # save asset
+    asset.seek(0)
     asset.save(os.path.join(UPLOAD_FOLDER, asset_id))
 
     # insert and entry in db

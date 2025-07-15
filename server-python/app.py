@@ -1,3 +1,4 @@
+# TODO: Serve out the url of the image of the event. 
 import os
 from flask import Flask, request, send_from_directory
 from flask_cors import CORS
@@ -51,7 +52,16 @@ def get_all():
 	if request.method != "GET":
 		return web_service.sendMethodNotAllowed()
 	
-	return web_service.sendSuccess(event_service.list_events())
+	try:
+		events = event_service.list_events()
+		assets = asset_service.get_all_assets()
+		for event in events:
+			if not event['image']:
+				event['image'] = assets.get(event['eventId'])
+
+		return web_service.sendSuccess(events)
+	except:
+		return web_service.sendInternalError("Unable to fetch events")
 
 @app.route("/event", methods=["GET", "POST", "PATCH", "DELETE"])
 def event():
@@ -66,6 +76,9 @@ def event():
 				event = event_service.get_event_detail(event_id)
 				if (event == {}):
 					return web_service.sendBadRequest("Event not exists")
+
+				if (not event['image']):
+					event['image'] = asset_service.get_assets_by_event_id(event_id)
 				return web_service.sendSuccess(event)
 			except Exception:
 				return web_service.sendInternalError('Invalid event ID')
@@ -85,6 +98,7 @@ def event():
 			try:
 				event_data = dict(request.form)
 				tags = request.form.getlist('tags')
+				event_data.pop("image", '')
 				event_data['tags'] = tags
 			except:
 				return web_service.sendBadRequest("Invalid request body")				
@@ -101,7 +115,7 @@ def event():
 					return web_service.sendInternalError("Cannot create event")
 				
 				# handle file uploads
-				files = request.files.getlist("file")
+				files = request.files.getlist("image")
 				for file in files:
 					if file.filename != '':
 						asset_id = asset_service.create_asset(file)
@@ -111,7 +125,7 @@ def event():
 						if not link_success:
 							return web_service.sendInternalError("Cannot link asset")
 				return web_service.sendSuccess(event_id)
-			except Exception:
+			except Exception as e:
 				return web_service.sendInternalError('Cannot create event')
 		case "PATCH": # updating event
 			# authentication
@@ -229,7 +243,6 @@ def user():
 					return web_service.sendInternalError("Unable to create user")
 				return web_service.sendSuccess(result)
 			except Exception as e:
-				print('error', e)
 				return web_service.sendInternalError('Cannot create an account')
 		case "PATCH": # update user profile
 			# authentication
@@ -398,7 +411,6 @@ def login():
 			except AuthApiError as e:
 				return web_service.sendUnauthorised("Wrong password")
 			except Exception as e:
-				print(e)
 				return web_service.sendInternalError("Unable to log in")
 		case _:
 			return web_service.sendMethodNotAllowed()
