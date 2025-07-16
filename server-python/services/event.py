@@ -151,7 +151,7 @@ def check_has_event_by_signup_link_and_name(signup_link, title):
         title (string): title of event
 
     Returns:
-        boolean: true if the event exists
+        string: eventId if the event exists
     """
     response = (
         database_service.get_db()
@@ -162,8 +162,8 @@ def check_has_event_by_signup_link_and_name(signup_link, title):
         .execute()
     )
     if len(response.data) > 0:
-        return True
-    return False
+        return response.data[0]['eventId']
+    return ''
 
 
 def create_event(event_data, user_id):

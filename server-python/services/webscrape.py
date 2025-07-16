@@ -270,9 +270,17 @@ def insert_to_database(data):
     # Insert entry into the database
     # Detects if it was not inserted properly
     for entry in data:
-        signup_link = entry['signupLink']
-        print(signup_link)
-        return_str = event_service.create_event(entry, user_id=user_id)
+        try:
+            signup_link = entry['signupLink']
+            title = entry['title']
+            event_id = event_service.check_has_event_by_signup_link_and_name(signup_link, title)
+            if event_id:
+                # update event if it is already in the db
+                event_service.edit_event(event_id, entry)
+                continue
+            event_service.create_event(entry, user_id=user_id)
+        except Exception as e:
+            print(f"Encountered error ${e}. Unable to add event ${title} (${signup_link}) into the db")
         # if return_str != signup_link:
         #     if PRINT_MODE >= 2 : print(f"insert_to_database(): Error: Unable to insert data entry with link {signup_link}.")
         #     if DEBUG_MODE : debug_mode_input()

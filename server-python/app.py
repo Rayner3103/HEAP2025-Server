@@ -33,7 +33,7 @@ CORS(
 scheduler = APScheduler()
 scheduler.init_app(app)
 
-@scheduler.task('cron', id='do_scrape', minute='0', hour='1')
+@scheduler.task('cron', id='do_scrape', minute='0', hour='12')
 def scrape():
 	print('Scrapping...')
 	webscrape_service.scrape(print_mode="all")
