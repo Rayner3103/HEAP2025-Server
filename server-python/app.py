@@ -4,8 +4,6 @@ from flask import Flask, request, send_from_directory
 from flask_cors import CORS
 from flask_apscheduler import APScheduler
 
-import json
-
 from supabase import AuthApiError
 
 from services import web as web_service
@@ -46,6 +44,19 @@ scheduler.start()
 @app.route("/")
 def index():
 	return web_service.sendSuccess("Active")
+
+@app.route('/jobs', methods=["GET"])
+def list_jobs():
+    jobs = scheduler.get_jobs()
+    job_list = []
+    for job in jobs:
+        job_list.append({
+            'id': job.id,
+            'name': job.name,
+            'trigger': str(job.trigger),
+            'next_run_time': str(job.next_run_time) if job.next_run_time else "None"
+        })
+    return web_service.sendSuccess(job_list)
 
 @app.route("/get_all", methods=["GET"])
 def get_all():
