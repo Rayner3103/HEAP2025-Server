@@ -43,6 +43,7 @@ scheduler.start()
 
 @app.route("/")
 def index():
+	print("Printing is healthy")
 	return web_service.sendSuccess("Active")
 
 @app.route('/jobs', methods=["GET"])
