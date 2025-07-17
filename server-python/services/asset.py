@@ -31,7 +31,7 @@ def get_assets_by_event_id(event_id):
     result = []
     if (response and response.data):
         for record in response.data:
-            result.append(SERVER_ASSET_PATH + record['assetId'])
+            result.append(record['assetId'])
 
     return result   
          
@@ -52,7 +52,7 @@ def get_all_assets():
         for record in response.data:
             if record['eventId'] not in result:
                 result[record['eventId']] = []
-            result[record['eventId']].append((SERVER_ASSET_PATH + record['assetId']))
+            result[record['eventId']].append((record['assetId']))
 
     return result       
 

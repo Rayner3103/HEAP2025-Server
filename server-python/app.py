@@ -59,21 +59,41 @@ def list_jobs():
         })
     return web_service.sendSuccess(job_list)
 
-@app.route("/get_all", methods=["GET"])
+@app.route("/get_all", methods=["GET", "POST"])
 def get_all():
-	if request.method != "GET":
-		return web_service.sendMethodNotAllowed()
-	
-	try:
-		events = event_service.list_events()
-		assets = asset_service.get_all_assets()
-		for event in events:
-			if not event['image']:
-				event['image'] = assets.get(event['eventId'])
+	if request.method == "GET":
+		try:
+			events = event_service.list_events()
+			assets = asset_service.get_all_assets()
+			for event in events:
+				if not event['image']:
+					event['image'] = assets.get(event['eventId'])
 
-		return web_service.sendSuccess(events)
-	except:
-		return web_service.sendInternalError("Unable to fetch events")
+			return web_service.sendSuccess(events)
+		except:
+			return web_service.sendInternalError("Unable to fetch events")
+	elif request.method == 'POST':
+		# authentication
+		try:
+			user_id = auth_service.validate_user_session(request.headers)
+		except AuthApiError:
+			return web_service.sendUnauthorised('You do not have access to this item')
+		except Exception:
+			return web_service.sendInternalError('Unable to perform authentication')
+		
+		try:
+			events = event_service.list_events()
+			events = [event for event in events if event["createdUserId"] == user_id]
+			assets = asset_service.get_all_assets()
+			for event in events:
+				if not event['image']:
+					event['image'] = assets.get(event['eventId'])
+
+			return web_service.sendSuccess(events)
+		except Exception as e:
+			return web_service.sendInternalError("Unable to fetch events")
+	else:
+		return web_service.sendMethodNotAllowed()
 
 @app.route("/event", methods=["GET", "POST", "PATCH", "DELETE"])
 def event():
@@ -153,10 +173,14 @@ def event():
 				return web_service.sendUnauthorised("You cannot update an event")
 			
 			try:
-				update_data = request.get_json()['updateData']
-				event_id = request.get_json()['eventId']
-			except:
-				return web_service.sendBadRequest("Invalid request body")
+				update_data = dict(request.form)
+				event_id = update_data.pop("eventId", '')
+				tags = request.form.getlist('tags')
+				update_data.pop("image", '')
+				update_data['tags'] = tags
+			except Exception:
+				print(update_data)
+				return web_service.sendBadRequest("Invalid request body")	
 			
 			try:
 				if (not event_service.validate_edit_fields(update_data)):
@@ -165,15 +189,35 @@ def event():
 				event = event_service.get_event_detail(event_id)
 				if (event == {}):
 					return web_service.sendBadRequest("Event not exists")
-				
+
 				if (user['role'] != 'admin' and event['createdUserId'] != user_id):
 					return web_service.sendUnauthorised("You have no access to this event")
+				
+				# handle image change
+				files = request.files.getlist("image")
+				if len(files) > 0:
+					if (not event['image']):
+						asset_ids = asset_service.get_assets_by_event_id(event_id)
+						for asset_id in asset_ids:
+							asset_service.unlink_asset(event_id, asset_id)
+					else:
+						update_data['ímage'] = None
+
+				for file in files:
+					if file.filename != '':
+						asset_id = asset_service.create_asset(file)
+						if asset_id == "":
+							return web_service.sendInternalError("Cannot create asset")
+						link_success = asset_service.link_asset(event_id, asset_id)
+						if not link_success:
+							return web_service.sendInternalError("Cannot link asset")
 
 				result = event_service.edit_event(event_id, update_data)
 				if result == "":
 					return web_service.sendInternalError("Unable to edit event")
 				return web_service.sendSuccess(result)
 			except Exception as e:
+				print(e)
 				return web_service.sendInternalError('Cannot update event')
 		case "DELETE": # deleting event
 			# authentication
@@ -189,6 +233,7 @@ def event():
 				return web_service.sendUnauthorised("You cannot delete an event")
 
 			try:
+				print(request.get_json())
 				event_id = request.get_json()['eventId']
 			except:
 				return web_service.sendBadRequest("Invalid request body")
@@ -200,6 +245,11 @@ def event():
 				
 				if (user['role'] != 'admin' and event['createdUserId'] != user_id):
 					return web_service.sendUnauthorised("You have no access to this event")
+
+				# handle delete image
+				asset_ids = asset_service.get_assets_by_event_id(event_id)
+				for asset_id in asset_ids:
+					asset_service.unlink_asset(event_id, asset_id)
 				
 				result = event_service.delete_event(event_id)
 				if (result == ""):
@@ -209,6 +259,45 @@ def event():
 				return web_service.sendInternalError('Cannot delete event')
 		case _:
 			return web_service.sendMethodNotAllowed()
+
+@app.route("/event/<event_id>", methods=["DELETE"])
+def delete_event(event_id):
+	match request.method:
+		case "DELETE": # deleting event
+			# authentication
+			try:
+				user_id = auth_service.validate_user_session(request.headers)
+			except AuthApiError:
+				return web_service.sendUnauthorised('You do not have access to this item')
+			except Exception:
+				return web_service.sendInternalError('Unable to perform authentication')
+			
+			user = user_service.get_user_detail(user_id)
+			if user['role'] != 'admin' and user['role'] != 'organiser':
+				return web_service.sendUnauthorised("You cannot delete an event")
+			
+			try:
+				event = event_service.get_event_detail(event_id)
+				if (event == {}):
+					return web_service.sendBadRequest("Event not exists")
+				
+				if (user['role'] != 'admin' and event['createdUserId'] != user_id):
+					return web_service.sendUnauthorised("You have no access to this event")
+
+				# handle delete image
+				asset_ids = asset_service.get_assets_by_event_id(event_id)
+				for asset_id in asset_ids:
+					asset_service.unlink_asset(event_id, asset_id)
+				
+				result = event_service.delete_event(event_id)
+				if (result == ""):
+					return web_service.sendInternalError("Unable to delete event")
+				return web_service.sendSuccess(result)
+			except Exception as e:
+				return web_service.sendInternalError('Cannot delete event')
+		case _:
+			return web_service.sendMethodNotAllowed()
+
 		
 @app.route("/user", methods=["GET", "POST", "PATCH", "DELETE"])
 def user():
