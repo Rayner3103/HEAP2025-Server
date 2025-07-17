@@ -4,7 +4,7 @@ from flask import Flask, request, send_from_directory
 from flask_cors import CORS
 from flask_apscheduler import APScheduler
 
-from supabase import AuthApiError
+from supabase import AuthApiError, AuthWeakPasswordError
 
 from services import web as web_service
 from services import event as event_service
@@ -22,8 +22,7 @@ CORS(
 	app, 
 	origins=[
 		"http://localhost:5173",
-		"https://heap-2025-client-nxadv9yht-rayner3103s-projects.vercel.app",
-		"https://heap-2025-client.vercel.app"
+		"https://heap-2025-client.vercel.app",
 	], 
 	supports_credentials=True, 
 	methods=["GET", "POST", "OPTIONS", "DELETE", "PATCH"], 
@@ -343,6 +342,8 @@ def user():
 				if result == "":
 					return web_service.sendInternalError("Unable to create user")
 				return web_service.sendSuccess(result)
+			except AuthWeakPasswordError as e:
+				return web_service.sendBadRequest("Password must be at least 6 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character (e.g., !@#$%)")
 			except Exception as e:
 				return web_service.sendInternalError('Cannot create an account')
 		case "PATCH": # update user profile
