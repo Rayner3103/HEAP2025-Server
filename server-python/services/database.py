@@ -9,7 +9,10 @@ try:
 
     url: str = os.environ.get('SUPABASE_URL')
     key: str = os.environ.get('SUPABASE_KEY_SERVICE_ROLE')
-    db: Client = create_client(supabase_url=url, supabase_key=key)
+    db: Client = create_client(supabase_url=url, supabase_key=key, 
+        options=ClientOptions(
+            auto_refresh_token=True,
+            persist_session=True))
     print('SuperBase client created.')
 except Exception as e:
     print("Error initiating SuperBase client", e)

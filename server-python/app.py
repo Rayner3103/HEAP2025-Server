@@ -69,7 +69,8 @@ def get_all():
 					event['image'] = assets.get(event['eventId'])
 
 			return web_service.sendSuccess(events)
-		except:
+		except Exception as e:
+			print(e)
 			return web_service.sendInternalError("Unable to fetch events")
 	elif request.method == 'POST':
 		# authentication
@@ -90,6 +91,7 @@ def get_all():
 
 			return web_service.sendSuccess(events)
 		except Exception as e:
+			print(e)
 			return web_service.sendInternalError("Unable to fetch events")
 	else:
 		return web_service.sendMethodNotAllowed()
@@ -111,7 +113,8 @@ def event():
 				if (not event['image']):
 					event['image'] = asset_service.get_assets_by_event_id(event_id)
 				return web_service.sendSuccess(event)
-			except Exception:
+			except Exception as e:
+				print(e)
 				return web_service.sendInternalError('Invalid event ID')
 		case "POST": # creating event
 			# authentication
@@ -157,6 +160,7 @@ def event():
 							return web_service.sendInternalError("Cannot link asset")
 				return web_service.sendSuccess(event_id)
 			except Exception as e:
+				print(e)
 				return web_service.sendInternalError('Cannot create event')
 		case "PATCH": # updating event
 			# authentication
@@ -255,6 +259,7 @@ def event():
 					return web_service.sendInternalError("Unable to delete event")
 				return web_service.sendSuccess(result)
 			except Exception as e:
+				print(e)
 				return web_service.sendInternalError('Cannot delete event')
 		case _:
 			return web_service.sendMethodNotAllowed()
@@ -293,6 +298,7 @@ def delete_event(event_id):
 					return web_service.sendInternalError("Unable to delete event")
 				return web_service.sendSuccess(result)
 			except Exception as e:
+				print(e)
 				return web_service.sendInternalError('Cannot delete event')
 		case _:
 			return web_service.sendMethodNotAllowed()
@@ -327,7 +333,8 @@ def user():
 				if (request_user == {}):
 					return web_service.sendBadRequest("User not exists")
 				return web_service.sendSuccess(user)
-			except Exception:
+			except Exception as e:
+				print(e)
 				return web_service.sendInternalError('Cannot get user data')
 		case "POST": # create an account
 			try:
@@ -345,6 +352,7 @@ def user():
 			except AuthWeakPasswordError as e:
 				return web_service.sendBadRequest("Password must be at least 6 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character (e.g., !@#$%)")
 			except Exception as e:
+				print(e)
 				return web_service.sendInternalError('Cannot create an account')
 		case "PATCH": # update user profile
 			# authentication
@@ -379,6 +387,7 @@ def user():
 					return web_service.sendInternalError("Unable to edit user")
 				return web_service.sendSuccess(result)
 			except Exception as e:
+				print(e)
 				return web_service.sendInternalError('Cannot edit user')
 		case "DELETE": # remove account
 			# authentication
@@ -409,6 +418,7 @@ def user():
 					return web_service.sendInternalError("Unable to delete user")
 				return web_service.sendSuccess(result)
 			except Exception as e:
+				print(e)
 				return web_service.sendInternalError('Cannot delete user')
 		case _:
 			return web_service.sendMethodNotAllowed()
@@ -456,6 +466,7 @@ def asset():
 							return web_service.sendInternalError("Cannot link asset")
 				return web_service.sendSuccess(event_id)
 			except Exception as e:
+				print(e)
 				return web_service.sendInternalError('Cannot upload file')
 		case "DELETE": # delete files
 			# authentication
@@ -490,6 +501,7 @@ def asset():
 					return web_service.sendSuccess("Unlinked success")				
 				return web_service.sendInternalError("Unable to unlink asset")
 			except Exception as e:
+				print(e)
 				return web_service.sendInternalError('Cannot delete file')
 		case _:
 			return web_service.sendMethodNotAllowed()
@@ -513,6 +525,7 @@ def login():
 			except AuthApiError as e:
 				return web_service.sendUnauthorised("Wrong password")
 			except Exception as e:
+				print(e)
 				return web_service.sendInternalError("Unable to log in")
 		case _:
 			return web_service.sendMethodNotAllowed()
