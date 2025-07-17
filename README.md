@@ -33,7 +33,7 @@ This is the backend service for [**Acadiverse**](https://heap-2025-client.vercel
 
 ### Prerequisites
 
-- Python 3.10+
+- Python 3.12+
 - pip or poetry
 - Supabase project and API keys
 
