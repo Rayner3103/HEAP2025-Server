@@ -36,6 +36,7 @@ This is the backend service for [**Acadiverse**](https://heap-2025-client.vercel
 - Python 3.12+
 - pip or poetry
 - Supabase project and API keys
+- Google Gemini API key
 
 ### Steps
 
