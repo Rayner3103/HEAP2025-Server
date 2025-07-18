@@ -17,6 +17,7 @@ class Config:
 	SCHEDULER_API_ENABLED = True
 
 app = Flask(__name__)
+PORT = os.environ.get("PORT")
 app.config.from_object(Config())
 CORS(
 	app, 
@@ -540,4 +541,4 @@ def health():
 		return web_service.sendSuccess("Success")
 
 if __name__ == '__main__':
-	app.run(debug=False, port=10000, host='0.0.0.0')
+	app.run(debug=False, port=PORT, host='0.0.0.0')
