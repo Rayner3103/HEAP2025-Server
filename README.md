@@ -107,6 +107,6 @@ Backend: https://heap2025-server.onrender.com/
 (Used internally by frontend at https://heap-2025-client.vercel.app/)
 
 
-## 🔗 Server Repo
+## 🔗 Client Repo
 
-https://github.com/Rayner3103/HEAP2025-Server/
+https://github.com/Rayner3103/HEAP2025-Client/
